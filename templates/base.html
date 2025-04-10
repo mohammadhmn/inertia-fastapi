@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title | default("FastAPI Inertia.js") }}</title>
+    {% block inertia_head %}{% endblock inertia_head %}
+    {% block styles %}{% endblock styles %}
+</head>
+<body>
+    {% block inertia %}{% endblock inertia %}
+    {% block scripts %}{% endblock scripts %}
+</body>
+</html> 
