@@ -1,38 +1,47 @@
+import json
 import warnings
-
-from django.core.serializers.json import DjangoJSONEncoder
-from django.db import models
-from django.db.models.query import QuerySet
-from django.forms.models import model_to_dict as base_model_to_dict
+from typing import Any, Dict
 
 from .prop_classes import DeferredProp, MergeProp, OptionalProp
 
 
-def model_to_dict(model):
-    return base_model_to_dict(model, exclude=("password",))
+def model_to_dict(model: Any) -> Dict[str, Any]:
+    """Convert a model to a dictionary, excluding password field."""
+    # This is a simple implementation, might need customization based on your ORM
+    if hasattr(model, "__dict__"):
+        return {
+            k: v
+            for k, v in model.__dict__.items()
+            if not k.startswith("_") and k != "password"
+        }
+    return {}
 
 
-class InertiaJsonEncoder(DjangoJSONEncoder):
-    def default(self, value):
+class InertiaJsonEncoder(json.JSONEncoder):
+    """JSON encoder for Inertia responses"""
+
+    def default(self, value: Any) -> Any:
         if hasattr(value.__class__, "InertiaMeta"):
             return {
                 field: getattr(value, field)
                 for field in value.__class__.InertiaMeta.fields
             }
 
-        if isinstance(value, models.Model):
+        # Handle ORM models - adapt this to your ORM
+        if hasattr(value, "__tablename__"):  # SQLAlchemy check
             return model_to_dict(value)
 
-        if isinstance(value, QuerySet):
+        # Handle query sets - adapt this to your ORM
+        if hasattr(value, "__iter__") and hasattr(value, "all"):
             return [
-                (model_to_dict(obj) if isinstance(value.model, models.Model) else obj)
+                model_to_dict(obj) if hasattr(obj, "__tablename__") else obj
                 for obj in value
             ]
 
         return super().default(value)
 
 
-def lazy(prop):
+def lazy(prop: Any) -> OptionalProp:
     warnings.warn(
         "lazy is deprecated and will be removed in a future version. Please use optional instead.",
         DeprecationWarning,
@@ -41,13 +50,13 @@ def lazy(prop):
     return optional(prop)
 
 
-def optional(prop):
+def optional(prop: Any) -> OptionalProp:
     return OptionalProp(prop)
 
 
-def defer(prop, group="default", merge=False):
+def defer(prop: Any, group: str = "default", merge: bool = False) -> DeferredProp:
     return DeferredProp(prop, group=group, merge=merge)
 
 
-def merge(prop):
+def merge(prop: Any) -> MergeProp:
     return MergeProp(prop)

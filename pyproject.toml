@@ -1,53 +1,58 @@
 [build-system]
-requires = ["poetry-core>=2.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
-name = "inertia-django"
-version = "1.2.0"
-description = "Django adapter for the InertiaJS framework"
-authors = [{name="Brandon Shar", email="brandon@bellawatt.com"}]
-license = "MIT"
-requires-python = ">=3.9"
+name = "inertia-fastapi"
+version = "0.1.0"
+description = "Inertia.js integration for FastAPI"
 readme = "README.md"
-repository = "https://github.com/inertiajs/inertia-django"
-homepage = "https://github.com/inertiajs/inertia-django"
-keywords = ["inertia", "inertiajs", "django"]
+authors = [
+    { name = "Inertia FastAPI Contributor", email = "example@example.com" },
+]
+license = { text = "MIT" }
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Framework :: Django :: 4",
-    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Framework :: FastAPI",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
 dependencies = [
-    "django>=4",
-    "requests>=2",
+  "fastapi>=0.103.2",
+  "jinja2>=3.1.6",
+  "pydantic>=2.5.3",
+  "uvicorn>=0.22.0",
 ]
+requires-python = ">=3.7"
 
-[tool.poetry]
-packages = [
-  { include = "inertia" },
-]
+[project.urls]
+"Homepage" = "https://github.com/mohammadhmn/inertia-fastapi"
+"Bug Tracker" = "https://github.com/mohammadhmn/inertia-fastapi/issues"
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.3.5"
-pytest-cov = "^6.0.0"
-pytest-django = "^4.10.0"
-ruff = "^0.11.2"
+[tool.setuptools]
+packages = ["inertia"]
+
 
 [tool.ruff.lint]
 select = [
-    "E", # pycodestyle
-    "W", # pycodestyle
-    "F", # Pyflakes
-    "B", # flake8-bugbear
+    "E",   # pycodestyle
+    "W",   # pycodestyle
+    "F",   # Pyflakes
+    "B",   # flake8-bugbear
     "SIM", # flake8-simplify
-    "I", # isort
+    "I",   # isort
 ]
 ignore = ["E501"] # line too long, formatter will handle this
 unfixable = ["B", "SIM"]
 
-[tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "inertia.tests.settings"
-django_find_project = false
+
+[dependency-groups]
+dev = [
+    "pytest>=7.4.4",
+    "ruff>=0.11.4",
+]

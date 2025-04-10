@@ -1,54 +1,102 @@
-from django.contrib import messages
-from django.middleware.csrf import get_token
+"""
+Inertia.js middleware for FastAPI.
+
+This module provides middleware for handling Inertia.js protocol requirements
+such as version checking, redirects, and other Inertia-specific behaviors.
+"""
+
+from http import HTTPStatus
+from typing import Callable
+
+from fastapi import FastAPI, Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from .http import location
-from .settings import settings
+from .settings import get_settings
 
 
-class InertiaMiddleware:
-    def __init__(self, get_response):
-        self.get_response = get_response
+class InertiaMiddleware(BaseHTTPMiddleware):
+    """Middleware for handling Inertia.js protocol requirements.
 
-    def __call__(self, request):
-        response = self.get_response(request)
+    This middleware handles:
+    - Version checking to force refreshes when assets change
+    - Converting certain redirects to 303 responses for non-GET methods
+    - Handling Inertia redirects properly
+    - Other Inertia-specific behaviors
+    """
 
-        # Inertia requests don't ever render templates, so they skip the typical Django
-        # CSRF path. We'll manually add a CSRF token for every request here.
-        get_token(request)
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        """Process the request through middleware.
 
-        if not self.is_inertia_request(request):
-            return response
+        Args:
+            request: The incoming request
+            call_next: Function to call the next middleware/route handler
 
-        if self.is_non_post_redirect(request, response):
-            response.status_code = 303
+        Returns:
+            The response
+        """
+        # Check for stale Inertia version on GET requests
+        if (
+            self._is_inertia_request(request)
+            and request.method == "GET"
+            and self._is_stale(request)
+        ):
+            return self._force_refresh(request)
 
-        if self.is_stale(request):
-            return self.force_refresh(request)
+        # Process the request through the rest of the app
+        response = await call_next(request)
+
+        # Handle Inertia requests
+        if self._is_inertia_request(request):
+            # Convert non-GET redirects to 303 See Other
+            if self._is_non_get_redirect(request, response):
+                response.status_code = HTTPStatus.SEE_OTHER  # 303 See Other
+
+            # Handle regular redirects for Inertia requests
+            elif self._is_redirect_response(response):
+                # Convert to Inertia location response
+                location_url = response.headers.get("Location", "/")
+                response.status_code = HTTPStatus.CONFLICT
+                response.headers["X-Inertia-Location"] = location_url
+                # Clear the original location header to avoid conflicts
+                if "Location" in response.headers:
+                    del response.headers["Location"]
 
         return response
 
-    def is_non_post_redirect(self, request, response):
-        return self.is_redirect_request(response) and request.method in [
+    def _is_inertia_request(self, request: Request) -> bool:
+        """Check if this is an Inertia request."""
+        return "X-Inertia" in request.headers
+
+    def _is_redirect_response(self, response: Response) -> bool:
+        """Check if this is a redirect response."""
+        return response.status_code in [
+            HTTPStatus.MOVED_PERMANENTLY,
+            HTTPStatus.FOUND,
+        ]  # 301, 302
+
+    def _is_non_get_redirect(self, request: Request, response: Response) -> bool:
+        """Check if this is a non-GET redirect that should be converted to 303."""
+        return self._is_redirect_response(response) and request.method in [
             "PUT",
             "PATCH",
             "DELETE",
         ]
 
-    def is_inertia_request(self, request):
-        return "X-Inertia" in request.headers
+    def _is_stale(self, request: Request) -> bool:
+        """Check if the Inertia version is stale."""
+        settings = get_settings()
+        return request.headers.get("X-Inertia-Version", "") != settings.INERTIA_VERSION
 
-    def is_redirect_request(self, response):
-        return response.status_code in [301, 302]
+    def _force_refresh(self, request: Request) -> Response:
+        """Force a refresh by returning a location response."""
+        return location(str(request.url))
 
-    def is_stale(self, request):
-        return (
-            request.headers.get("X-Inertia-Version", settings.INERTIA_VERSION)
-            != settings.INERTIA_VERSION
-        )
 
-    def is_stale_inertia_get(self, request):
-        return request.method == "GET" and self.is_stale(request)
+def setup_inertia_middleware(app: FastAPI) -> None:
+    """Add the Inertia middleware to a FastAPI application.
 
-    def force_refresh(self, request):
-        messages.get_messages(request).used = False
-        return location(request.build_absolute_uri())
+    Args:
+        app: The FastAPI application
+    """
+    app.add_middleware(InertiaMiddleware)
