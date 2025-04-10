@@ -1,8 +1,40 @@
 from pathlib import Path
 
+from pydantic import BaseSettings
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-INERTIA_LAYOUT = "layout.html"
+
+class InertiaSettings(BaseSettings):
+    """Inertia settings for FastAPI."""
+
+    # The Inertia template layout to use
+    INERTIA_LAYOUT: str = "layout.html"
+
+    # The Inertia version string for cache busting
+    INERTIA_VERSION: str = "1.0"
+
+    # The path to the templates directory
+    TEMPLATES_DIR: Path = BASE_DIR / "tests/templates"
+
+    # Path to the SSR bundle (if using SSR)
+    SSR_BUNDLE_PATH: str = ""
+
+    # Whether to enable SSR
+    SSR_ENABLED: bool = False
+
+    # Maximum SSR timeout in seconds
+    SSR_TIMEOUT: int = 10
+
+    # Secret key for CSRF protection
+    SECRET_KEY: str = "fastapi-insecure-key-for-testing-only"
+
+    class Config:
+        env_prefix = "INERTIA_"
+
+
+# Create a default settings instance
+settings = InertiaSettings()
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -46,7 +78,6 @@ TEMPLATES = [
 ]
 
 # only in place to silence an error
-SECRET_KEY = "django-insecure-3p_!uve+em7f45+74jh16)y)h00ve@9d2edh=cuebdsrbco%vb"
 DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": "unused"}}
 
 # silence a warning
