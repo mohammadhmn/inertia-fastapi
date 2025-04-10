@@ -167,3 +167,4 @@ poetry.lock
 
 .DS_Store
 .tool-versions
+uv.lock
